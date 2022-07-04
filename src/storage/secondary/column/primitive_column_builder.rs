@@ -12,7 +12,8 @@ use super::super::{
 };
 use super::ColumnBuilder;
 use crate::array::Array;
-use crate::storage::secondary::block::RleBlockBuilder;
+use crate::storage::secondary::block::{DictBlockBuilder, RleBlockBuilder};
+use crate::storage::secondary::EncodeType;
 use crate::types::{Date, Interval};
 
 /// All supported block builders for primitive types.
@@ -21,6 +22,8 @@ pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
     PlainNullable(PlainPrimitiveNullableBlockBuilder<T>),
     RunLength(RleBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
     RleNullable(RleBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
+    // Dictionary(DictBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
+    // DictNullable(DictBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
 }
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
@@ -132,8 +135,8 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
         let mut iter = array.iter().peekable();
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
-                match (self.nullable, self.options.is_rle) {
-                    (true, true) => {
+                match (self.nullable, self.options.encode_type) {
+                    (true, EncodeType::Rle) => {
                         let builder = PlainPrimitiveNullableBlockBuilder::new(
                             self.options.target_block_size - 16,
                         );
@@ -145,14 +148,26 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                                 builder
                             )));
                     }
-                    (true, false) => {
+                    (true, EncodeType::Plain) => {
                         self.current_builder = Some(BlockBuilderImpl::PlainNullable(
                             PlainPrimitiveNullableBlockBuilder::new(
                                 self.options.target_block_size - 16,
                             ),
                         ));
                     }
-                    (false, true) => {
+                    (true, EncodeType::Dict) => {
+                        let builder = PlainPrimitiveNullableBlockBuilder::new(
+                            self.options.target_block_size - 16,
+                        );
+                        self.current_builder =
+                            Some(BlockBuilderImpl::RleNullable(RleBlockBuilder::<
+                                T::ArrayType,
+                                PlainPrimitiveNullableBlockBuilder<T>,
+                            >::new(
+                                builder
+                            )));
+                    }
+                    (false, EncodeType::Rle) => {
                         let builder =
                             PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16);
                         self.current_builder =
@@ -163,10 +178,21 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                                 builder
                             )));
                     }
-                    (false, false) => {
+                    (false, EncodeType::Plain) => {
                         self.current_builder = Some(BlockBuilderImpl::Plain(
                             PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
                         ));
+                    }
+                    (false, EncodeType::Dict) => {
+                        let builder =
+                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16);
+                        self.current_builder =
+                            Some(BlockBuilderImpl::RunLength(RleBlockBuilder::<
+                                T::ArrayType,
+                                PlainPrimitiveBlockBuilder<T>,
+                            >::new(
+                                builder
+                            )));
                     }
                 }
 

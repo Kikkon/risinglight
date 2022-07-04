@@ -117,6 +117,11 @@ where
             cur_count: 0,
         }
     }
+
+    // rle_counts.len + cur_count
+    pub fn get_rle_count_num(&self) -> usize {
+        return (self.rle_counts.len() + 1) as usize;
+    }
 }
 
 impl<A, B> BlockBuilder<A> for RleBlockBuilder<A, B>

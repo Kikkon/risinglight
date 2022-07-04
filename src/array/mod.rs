@@ -155,6 +155,7 @@ impl<A: Array> ArrayExt for A {
 pub type BoolArray = PrimitiveArray<bool>;
 pub type I32Array = PrimitiveArray<i32>;
 pub type I64Array = PrimitiveArray<i64>;
+pub type U32Array = PrimitiveArray<u32>;
 pub type F64Array = PrimitiveArray<f64>;
 pub type DecimalArray = PrimitiveArray<Decimal>;
 pub type DateArray = PrimitiveArray<Date>;

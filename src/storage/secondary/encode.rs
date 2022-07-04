@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::hash::Hash;
+
 use bytes::{Buf, BufMut};
 use rust_decimal::Decimal;
 
